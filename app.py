@@ -39,36 +39,34 @@ if font_bold and font_book:
         font-family: 'WuerthBold', sans-serif !important;
         color: #DA291C; /* Rojo Würth */
     }}
+    .stDataFrame {{
+        border: 1px solid #DA291C;
+        border-radius: 5px;
+    }}
     </style>
     """
     st.markdown(font_style, unsafe_allow_html=True)
 
 # --- GESTIÓN DE DATOS ---
-DATA_FILE = "datos_competencia_guardados.csv"
+DATA_FILE = "db_competencia.csv"
 INITIAL_FILE = "Datos.csv"
 
 def load_data():
-    # 1. Intentar cargar datos guardados por la app
+    # 1. Cargar datos guardados si existen
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
     
-    # 2. Intentar cargar el archivo inicial 'Datos.csv'
+    # 2. Cargar archivo inicial Datos.csv
     if os.path.exists(INITIAL_FILE):
         try:
-            # Probamos con punto y coma primero, que es el formato de tu archivo
-            return pd.read_csv(INITIAL_FILE, sep=';')
+            # Tu archivo CSV usa punto y coma (;)
+            return pd.read_csv(INITIAL_FILE, sep=';', encoding='utf-8')
         except Exception:
-            try:
-                # Si falla, probamos con coma normal
-                return pd.read_csv(INITIAL_FILE)
-            except Exception:
-                pass
+            return pd.read_csv(INITIAL_FILE, sep=',', encoding='utf-8')
             
-    # 3. Si nada existe, devolver estructura base
-    return pd.DataFrame(columns=['ID', 'Nombre', 'Equipo que integra en la competencia', 'PUNTOS ACUMULADOS'])
+    return pd.DataFrame()
 
 def save_data(df):
-    # Guardamos siempre con coma para evitar problemas de compatibilidad interna
     df.to_csv(DATA_FILE, index=False)
 
 # --- INTERFAZ ---
@@ -80,73 +78,74 @@ with tab1:
     df_raw = load_data()
     
     if not df_raw.empty:
-        # Limpiar nombres de columnas
+        # Limpieza de nombres de columnas
         df_raw.columns = df_raw.columns.str.strip()
         
-        # Filtrar filas que tengan un ID numérico (ignora encabezados de fecha o filas vacías)
+        # Filtrar solo filas con ID válido (evita la fila de '12 de Febrero' que no tiene ID)
         df = df_raw[pd.to_numeric(df_raw['ID'], errors='coerce').notnull()].copy()
         
-        # Verificar si existe la columna de puntos
-        col_puntos = 'PUNTOS ACUMULADOS'
-        if col_puntos in df.columns:
-            df[col_puntos] = pd.to_numeric(df[col_puntos], errors='coerce').fillna(0).astype(int)
+        # Columna de puntos
+        col_pts = 'PUNTOS ACUMULADOS'
+        
+        if col_pts in df.columns:
+            # Convertir a número y rellenar vacíos
+            df[col_pts] = pd.to_numeric(df[col_pts], errors='coerce').fillna(0).astype(int)
             
-            # Ordenar por puntos (Ranking)
-            df = df.sort_values(by=col_puntos, ascending=False).reset_index(drop=True)
+            # Ordenar por Ranking
+            df = df.sort_values(by=col_pts, ascending=False).reset_index(drop=True)
             df.index += 1
             
-            # Formato de Ranking con medallas
-            def get_medal(idx):
+            # Medallas
+            def format_rank(idx):
                 if idx == 1: return "🥇"
                 if idx == 2: return "🥈"
                 if idx == 3: return "🥉"
                 return str(idx)
             
-            df['Posición'] = [get_medal(i) for i in df.index]
+            df['Pos.'] = [format_rank(i) for i in df.index]
             
-            st.subheader("Clasificación General del Equipo")
+            st.subheader("Clasificación de Clientes")
             
-            # Columnas a mostrar
-            vista_df = df[['Posición', 'Nombre', 'Equipo que integra en la competencia', col_puntos]]
-            
+            # Mostrar tabla limpia
+            cols_mostrar = ['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]
             st.dataframe(
-                vista_df, 
+                df[cols_mostrar], 
                 use_container_width=True, 
                 hide_index=True
             )
         else:
-            st.info(f"No se encontró la columna '{col_puntos}' en el archivo.")
+            st.error(f"Error: No se encuentra la columna '{col_pts}'")
     else:
-        st.warning("No se detectaron datos. Ve a 'Administrar' para cargar tu archivo Datos.csv.")
+        st.warning("⚠️ El archivo 'Datos.csv' no fue encontrado en el repositorio.")
 
 with tab2:
-    st.subheader("Panel de Control")
-    password = st.text_input("Contraseña de acceso:", type="password")
+    st.subheader("Carga de Datos")
+    pwd = st.text_input("Contraseña:", type="password")
     
-    if password == "Patricia.Faguaga":
-        st.success("Acceso autorizado")
-        uploaded_file = st.file_uploader("Actualizar base de datos (.csv o .xlsx)", type=["csv", "xlsx"])
+    if pwd == "Patricia.Faguaga":
+        st.success("Acceso Permitido")
+        archivo_nuevo = st.file_uploader("Actualizar base (.csv o .xlsx)", type=["csv", "xlsx"])
         
-        if uploaded_file is not None:
+        if archivo_nuevo:
             try:
-                if uploaded_file.name.endswith('.xlsx'):
-                    new_df = pd.read_excel(uploaded_file, engine='openpyxl')
+                if archivo_nuevo.name.endswith('.xlsx'):
+                    new_df = pd.read_excel(archivo_nuevo, engine='openpyxl')
                 else:
-                    # Al cargar manualmente, intentamos detectar el separador
+                    # Intentar leer CSV con ; y si no con ,
                     try:
-                        new_df = pd.read_csv(uploaded_file, sep=';')
-                        if len(new_df.columns) <= 1: # Si no separó bien, probar coma
-                            uploaded_file.seek(0)
-                            new_df = pd.read_csv(uploaded_file, sep=',')
+                        new_df = pd.read_csv(archivo_nuevo, sep=';')
+                        if len(new_df.columns) <= 1: 
+                            archivo_nuevo.seek(0)
+                            new_df = pd.read_csv(archivo_nuevo, sep=',')
                     except:
-                        uploaded_file.seek(0)
-                        new_df = pd.read_csv(uploaded_file)
+                        archivo_nuevo.seek(0)
+                        new_df = pd.read_csv(archivo_nuevo)
                 
-                if st.button("Guardar Cambios y Actualizar Ranking"):
+                if st.button("Publicar Resultados"):
                     save_data(new_df)
                     st.balloons()
-                    st.success("¡Datos actualizados con éxito!")
+                    st.success("¡Ranking actualizado con éxito!")
             except Exception as e:
-                st.error(f"Error al procesar: {e}")
-    elif password != "":
+                st.error(f"Error al leer el archivo: {e}")
+    elif pwd != "":
         st.error("Contraseña incorrecta")

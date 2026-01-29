@@ -22,22 +22,14 @@ def load_image(image_path):
         return image_path
     return None
 
-# --- LOGO Y ESTILOS ---
-logo_path = load_image("logo_wurth.jpg") # Nombre exacto
-
-if logo_path:
-    # Centrar logo mediante columnas
-    col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 1, 1])
-    with col_logo_2:
-        st.image(logo_path, width=250)
-
-# --- APLICAR FUENTES ---
+# --- ESTILOS CSS PERSONALIZADOS ---
 font_bold = get_base64_font("WuerthBold.ttf")
 font_book = get_base64_font("WuerthBook.ttf")
 
-if font_bold and font_book:
-    font_style = f"""
-    <style>
+# CSS para: Fuentes, Colores, y quitar los iconos de "clip" (enlaces)
+custom_css = f"""
+<style>
+    /* Importar fuentes */
     @font-face {{
         font-family: 'WuerthBold';
         src: url(data:font/ttf;base64,{font_bold}) format('truetype');
@@ -46,20 +38,43 @@ if font_bold and font_book:
         font-family: 'WuerthBook';
         src: url(data:font/ttf;base64,{font_book}) format('truetype');
     }}
+
+    /* Aplicar fuentes a toda la app */
     html, body, [class*="css"], .stMarkdown {{
         font-family: 'WuerthBook', sans-serif !important;
     }}
+    
     h1, h2, h3, b, strong {{
         font-family: 'WuerthBold', sans-serif !important;
         color: #DA291C;
     }}
+
+    /* Estilo para las métricas de equipo */
     [data-testid="stMetricValue"] {{
         font-family: 'WuerthBold', sans-serif !important;
         color: #DA291C;
     }}
-    </style>
-    """
-    st.markdown(font_style, unsafe_allow_html=True)
+
+    /* OCULTAR ICONOS DE ENLACE (CLIP) EN TÍTULOS */
+    .viewerBadge_container__1QS1n, .st-emotion-cache-15zrgzn {{
+        display: none !important;
+    }}
+    button.copy-to-clipboard {{
+        display: none !important;
+    }}
+    a.anchor-link {{
+        display: none !important;
+    }}
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
+
+# --- ENCABEZADO: LOGO A LA IZQUIERDA ---
+logo_path = load_image("logo_wurth.png")
+if logo_path:
+    col_l, col_r = st.columns([1, 4]) # Proporción para empujar el logo a la izquierda
+    with col_l:
+        st.image(logo_path, width=180)
 
 # --- GESTIÓN DE DATOS ---
 DATA_FILE = "db_competencia.csv"
@@ -97,7 +112,7 @@ with tab1:
         if col_pts in df.columns:
             df[col_pts] = pd.to_numeric(df[col_pts], errors='coerce').fillna(0).astype(int)
             
-            # --- SCORE POR EQUIPOS ---
+            # --- LÓGICA DE EQUIPOS ---
             def categorizar_equipo(nombre_equipo):
                 nombre = str(nombre_equipo).lower().strip()
                 if 'tandem' in nombre: return 'Tandem'

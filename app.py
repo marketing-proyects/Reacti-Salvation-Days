@@ -5,8 +5,12 @@ import os
 import glob
 from datetime import datetime
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="REACTI-SALVATION DAYS", layout="wide")
+# --- CONFIGURACIÓN DE PÁGINA (CON FAVICON) ---
+st.set_page_config(
+    page_title="REACTISALVATION DAYS", 
+    layout="wide",
+    page_icon="favicon.png" # Asegúrate de que el archivo se llame exactamente así
+)
 
 # --- FUNCIONES PARA RECURSOS ---
 def get_base64_font(font_file):
@@ -30,26 +34,45 @@ custom_css = f"""
     h1, h2, h3, b, strong {{ font-family: 'WuerthBold', sans-serif !important; color: #DA291C; }}
     [data-testid="stMetricValue"] {{ font-family: 'WuerthBold', sans-serif !important; color: #DA291C; }}
 
-    /* ESTILO LOGO: 1px de espacio blanco arriba y a la izquierda */
+    /* LOGO: 1px de espacio blanco arriba y a la izquierda */
     .logo-container {{
         border-top: 1px solid white;
         border-left: 1px solid white;
         display: inline-block;
-        line-height: 0;
+        padding: 0;
+        margin: 0;
     }}
 
-    /* ELIMINAR LOS CLIPS Y ANCLAJES DEFINITIVAMENTE */
+    /* ELIMINAR LOS CLIPS Y ANCLAJES DE TODA LA PAGINA */
     [data-testid="stHeaderActionElements"], 
     .st-emotion-cache-15zrgzn, 
     .st-emotion-cache-kg9q0s, 
     a.anchor-link, 
     button.copy-to-clipboard, 
-    [data-testid="stHeader"] {{
+    [data-testid="stHeader"],
+    .st-emotion-cache-10trblm {{
+        display: none !important;
+    }}
+    
+    /* Eliminar el anclaje específico de los títulos de datos */
+    div[data-testid="stVerticalBlock"] > div > div > div > h3 > a {{
         display: none !important;
     }}
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
+
+# --- ENCABEZADO: LOGO A LA IZQUIERDA ---
+logo_search = glob.glob("logo_wurth.*")
+if logo_search:
+    col_l, col_r = st.columns([1, 4])
+    with col_l:
+        with open(logo_search[0], "rb") as f:
+            data = f.read()
+            b64 = base64.b64encode(data).decode()
+        st.markdown(f'<div class="logo-container"><img src="data:image/png;base64,{b64}" width="180"></div>', unsafe_allow_html=True)
+
+st.title("REACTISALVATION DAYS")
 
 # --- GESTIÓN DE DATOS ---
 DATA_FILE = "db_competencia.csv"
@@ -76,7 +99,6 @@ def save_data(df):
                      'Clientes Reactivados', 'Clientes 11 meses', 'PUNTOS ACUMULADOS']
     existentes = [c for c in columnas_hist if c in df_hist.columns]
     df_final_hist = df_hist[existentes]
-
     if os.path.exists(HISTORICO_FILE):
         old_hist = pd.read_csv(HISTORICO_FILE)
         old_hist = old_hist[old_hist['Fecha Competencia'] != datetime.now().strftime("%d/%m/%Y")]
@@ -84,16 +106,6 @@ def save_data(df):
     else:
         new_hist = df_final_hist
     new_hist.to_csv(HISTORICO_FILE, index=False, encoding='utf-8')
-
-# --- ENCABEZADO: LOGO ---
-logo_search = glob.glob("logo_wurth.*")
-if logo_search:
-    col_l, col_r = st.columns([1, 4])
-    with col_l:
-        # Aplicamos el contenedor con el borde de 1px blanco solicitado
-        st.markdown(f'<div class="logo-container"><img src="data:image/png;base64,{base64.b64encode(open(logo_search[0], "rb").read()).decode()}" width="180"></div>', unsafe_allow_html=True)
-
-st.title("REACTI-SALVATION DAYS")
 
 # --- PESTAÑAS ---
 tab1, tab2, tab3, tab4 = st.tabs(["🏆 Ranking Actual", "📅 Evolución Histórica", "🎟️ Cupones disponibles", "⚙️ Administrar"])
@@ -104,80 +116,46 @@ with tab1:
         df_raw.columns = df_raw.columns.str.strip()
         df = df_raw[pd.to_numeric(df_raw['ID'], errors='coerce').notnull()].copy()
         col_pts = 'PUNTOS ACUMULADOS'
-        
         if col_pts in df.columns:
             df[col_pts] = pd.to_numeric(df[col_pts], errors='coerce').fillna(0).astype(int)
-            
             def cat_eq(n):
                 n = str(n).lower()
                 return 'Tandem' if 'tandem' in n else 'Cartera Propia' if 'cartera propia' in n else 'Otros'
-            
             df['Eq_R'] = df['Equipo que integra en la competencia'].apply(cat_eq)
             s_tan = df[df['Eq_R'] == 'Tandem'][col_pts].sum()
             s_cp = df[df['Eq_R'] == 'Cartera Propia'][col_pts].sum()
-
             c1, c2 = st.columns(2)
             c1.metric(f"{'👑 ' if s_tan > s_cp else ''}Tandem", f"{s_tan} Pts")
             c2.metric(f"{'👑 ' if s_cp > s_tan else ''}Cartera Propia", f"{s_cp} Pts")
             st.divider()
-
             df = df.sort_values(by=col_pts, ascending=False).reset_index(drop=True)
             df.index += 1
             df['Pos.'] = [("🥇" if i==1 else "🥈" if i==2 else "🥉" if i==3 else str(i)) for i in df.index]
-            st.dataframe(df[['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]], 
-                         use_container_width=True, hide_index=True)
+            st.dataframe(df[['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]], use_container_width=True, hide_index=True)
 
 with tab2:
-    st.subheader("Histórico de Desempeño por Mes")
+    st.subheader("Histórico de Desempeño")
     if os.path.exists(HISTORICO_FILE):
         h_df = pd.read_csv(HISTORICO_FILE)
         persona = st.selectbox("Seleccionar Competidora:", ["Todas"] + sorted(h_df['Nombre'].unique().tolist()))
-        if persona != "Todas":
-            h_df = h_df[h_df['Nombre'] == persona]
+        if persona != "Todas": h_df = h_df[h_df['Nombre'] == persona]
         st.dataframe(h_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("No hay registros históricos todavía.")
+    else: st.info("No hay registros históricos todavía.")
 
 with tab3:
     st.subheader("Cupones de Descuento")
-    st.write("Accede a los cupones vigentes (EXCLUSIVOS) para el dia de la competencia en el siguiente enlace:")
-    
-    # URL Cupones Exclusivos competencia
     url_cupones = "https://eshop.wurth.com.uy/es/UY/UYU/"
-    
-    st.markdown(f"""
-        <a href="{url_cupones}" target="_blank">
-            <button style="
-                background-color: #DA291C;
-                color: white;
-                padding: 15px 32px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                margin: 4px 2px;
-                cursor: pointer;
-                border: none;
-                border-radius: 8px;
-                font-family: 'WuerthBold', sans-serif;">
-                Ir a E-Shop Würth
-            </button>
-        </a>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<a href="{url_cupones}" target="_blank"><button style="background-color: #DA291C; color: white; padding: 15px 32px; border: none; border-radius: 8px; font-family: \'WuerthBold\', sans-serif; cursor: pointer;">Ir a E-Shop Würth</button></a>', unsafe_allow_html=True)
 
 with tab4:
     st.subheader("Cargar Datos")
     pwd = st.text_input("Contraseña:", type="password")
     if pwd == "Patricia.Faguaga":
-        archivo = st.file_uploader("Subir archivo del día", type=["csv", "xlsx"])
-        if archivo:
-            if st.button("Guardar y Registrar este Mes"):
-                try:
-                    if archivo.name.endswith('.xlsx'):
-                        new_df = pd.read_excel(archivo, engine='openpyxl')
-                    else:
-                        new_df = pd.read_csv(archivo, sep=None, engine='python', encoding='latin-1')
-                    save_data(new_df)
-                    st.balloons()
-                    st.success("¡Datos guardados!")
-                except Exception as e: st.error(f"Error: {e}")
+        archivo = st.file_uploader("Subir archivo", type=["csv", "xlsx"])
+        if archivo and st.button("Guardar y Registrar este Mes"):
+            try:
+                new_df = pd.read_excel(archivo, engine='openpyxl') if archivo.name.endswith('.xlsx') else pd.read_csv(archivo, sep=None, engine='python', encoding='latin-1')
+                save_data(new_df)
+                st.balloons()
+                st.success("¡Datos guardados!")
+            except Exception as e: st.error(f"Error: {e}")

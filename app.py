@@ -140,9 +140,9 @@ with tab2:
 
 with tab3:
     st.subheader("Cupones de Descuento")
-    st.write("Accede a los beneficios vigentes para la competencia en el siguiente enlace:")
+    st.write("Accede a los cupones vigentes (EXCLUSIVOS) para el dia de la competencia en el siguiente enlace:")
     
-    # URL que podrás cambiar fácilmente aquí abajo
+    # URL Cupones Exclusivos competencia
     url_cupones = "https://eshop.wurth.com.uy/es/UY/UYU/"
     
     st.markdown(f"""

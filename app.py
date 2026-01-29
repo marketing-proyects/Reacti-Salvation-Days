@@ -37,11 +37,7 @@ if font_bold and font_book:
     }}
     h1, h2, h3, b, strong {{
         font-family: 'WuerthBold', sans-serif !important;
-        color: #DA291C; /* Rojo Würth */
-    }}
-    .stDataFrame {{
-        border: 1px solid #DA291C;
-        border-radius: 5px;
+        color: #DA291C;
     }}
     </style>
     """
@@ -56,18 +52,23 @@ def load_data():
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
     
-    # 2. Cargar archivo inicial Datos.csv
+    # 2. Cargar archivo inicial Datos.csv con manejo de errores de codificación
     if os.path.exists(INITIAL_FILE):
-        try:
-            # Tu archivo CSV usa punto y coma (;)
-            return pd.read_csv(INITIAL_FILE, sep=';', encoding='utf-8')
-        except Exception:
-            return pd.read_csv(INITIAL_FILE, sep=',', encoding='utf-8')
+        # Probamos combinaciones comunes de Excel (Punto y coma + latin-1)
+        for encoding in ['latin-1', 'utf-8', 'iso-8859-1']:
+            for sep in [';', ',']:
+                try:
+                    df = pd.read_csv(INITIAL_FILE, sep=sep, encoding=encoding)
+                    if len(df.columns) > 1: # Si encontró más de una columna, es el separador correcto
+                        return df
+                except Exception:
+                    continue
             
     return pd.DataFrame()
 
 def save_data(df):
-    df.to_csv(DATA_FILE, index=False)
+    # Guardamos en UTF-8 para evitar errores futuros en la app
+    df.to_csv(DATA_FILE, index=False, encoding='utf-8')
 
 # --- INTERFAZ ---
 st.title("REACTISALVATION DAYS")
@@ -78,48 +79,35 @@ with tab1:
     df_raw = load_data()
     
     if not df_raw.empty:
-        # Limpieza de nombres de columnas
         df_raw.columns = df_raw.columns.str.strip()
         
-        # Filtrar solo filas con ID válido (evita la fila de '12 de Febrero' que no tiene ID)
+        # Filtro para ignorar filas sin ID (como la fila de fecha bajo los encabezados)
         df = df_raw[pd.to_numeric(df_raw['ID'], errors='coerce').notnull()].copy()
         
-        # Columna de puntos
         col_pts = 'PUNTOS ACUMULADOS'
-        
         if col_pts in df.columns:
-            # Convertir a número y rellenar vacíos
             df[col_pts] = pd.to_numeric(df[col_pts], errors='coerce').fillna(0).astype(int)
-            
-            # Ordenar por Ranking
             df = df.sort_values(by=col_pts, ascending=False).reset_index(drop=True)
             df.index += 1
             
-            # Medallas
             def format_rank(idx):
                 if idx == 1: return "🥇"
-                if idx == 2: return "🥈"
-                if idx == 3: return "🥉"
+                elif idx == 2: return "🥈"
+                elif idx == 3: return "🥉"
                 return str(idx)
             
             df['Pos.'] = [format_rank(i) for i in df.index]
             
             st.subheader("Clasificación de Clientes")
-            
-            # Mostrar tabla limpia
             cols_mostrar = ['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]
-            st.dataframe(
-                df[cols_mostrar], 
-                use_container_width=True, 
-                hide_index=True
-            )
+            st.dataframe(df[cols_mostrar], use_container_width=True, hide_index=True)
         else:
-            st.error(f"Error: No se encuentra la columna '{col_pts}'")
+            st.error(f"No se encuentra la columna '{col_pts}'")
     else:
-        st.warning("⚠️ El archivo 'Datos.csv' no fue encontrado en el repositorio.")
+        st.warning("⚠️ No se pudieron cargar los datos de 'Datos.csv'.")
 
 with tab2:
-    st.subheader("Carga de Datos")
+    st.subheader("Panel Administrativo")
     pwd = st.text_input("Contraseña:", type="password")
     
     if pwd == "Patricia.Faguaga":
@@ -131,20 +119,23 @@ with tab2:
                 if archivo_nuevo.name.endswith('.xlsx'):
                     new_df = pd.read_excel(archivo_nuevo, engine='openpyxl')
                 else:
-                    # Intentar leer CSV con ; y si no con ,
-                    try:
-                        new_df = pd.read_csv(archivo_nuevo, sep=';')
-                        if len(new_df.columns) <= 1: 
-                            archivo_nuevo.seek(0)
-                            new_df = pd.read_csv(archivo_nuevo, sep=',')
-                    except:
-                        archivo_nuevo.seek(0)
-                        new_df = pd.read_csv(archivo_nuevo)
+                    # Intento de lectura robusta para CSV subido
+                    new_df = None
+                    for enc in ['latin-1', 'utf-8']:
+                        for s in [';', ',']:
+                            try:
+                                archivo_nuevo.seek(0)
+                                temp_df = pd.read_csv(archivo_nuevo, sep=s, encoding=enc)
+                                if len(temp_df.columns) > 1:
+                                    new_df = temp_df
+                                    break
+                            except: continue
+                        if new_df is not None: break
                 
-                if st.button("Publicar Resultados"):
+                if st.button("Publicar Resultados") and new_df is not None:
                     save_data(new_df)
                     st.balloons()
-                    st.success("¡Ranking actualizado con éxito!")
+                    st.success("¡Datos actualizados con éxito!")
             except Exception as e:
                 st.error(f"Error al leer el archivo: {e}")
     elif pwd != "":

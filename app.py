@@ -6,7 +6,7 @@ import os
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="REACTISALVATION DAYS", layout="wide")
 
-# --- FUNCIONES PARA FUENTES WÜRTH ---
+# --- FUNCIONES PARA RECURSOS ---
 def get_base64_font(font_file):
     try:
         if os.path.exists(font_file):
@@ -17,7 +17,21 @@ def get_base64_font(font_file):
         return None
     return None
 
-# --- APLICAR ESTILOS ---
+def load_image(image_path):
+    if os.path.exists(image_path):
+        return image_path
+    return None
+
+# --- LOGO Y ESTILOS ---
+logo_path = load_image("logo_wurth.png") # Asegúrate de que el nombre sea exacto
+
+if logo_path:
+    # Centrar logo mediante columnas
+    col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 1, 1])
+    with col_logo_2:
+        st.image(logo_path, width=250)
+
+# --- APLICAR FUENTES ---
 font_bold = get_base64_font("WuerthBold.ttf")
 font_book = get_base64_font("WuerthBook.ttf")
 
@@ -39,7 +53,6 @@ if font_bold and font_book:
         font-family: 'WuerthBold', sans-serif !important;
         color: #DA291C;
     }}
-    /* Estilo para las métricas de equipo */
     [data-testid="stMetricValue"] {{
         font-family: 'WuerthBold', sans-serif !important;
         color: #DA291C;
@@ -84,26 +97,20 @@ with tab1:
         if col_pts in df.columns:
             df[col_pts] = pd.to_numeric(df[col_pts], errors='coerce').fillna(0).astype(int)
             
-            # --- LÓGICA DE EQUIPOS ---
+            # --- SCORE POR EQUIPOS ---
             def categorizar_equipo(nombre_equipo):
                 nombre = str(nombre_equipo).lower().strip()
-                if 'tandem' in nombre:
-                    return 'Tandem'
-                if 'cartera propia' in nombre:
-                    return 'Cartera Propia'
+                if 'tandem' in nombre: return 'Tandem'
+                if 'cartera propia' in nombre: return 'Cartera Propia'
                 return 'Otros'
 
             df['Equipo_Resumido'] = df['Equipo que integra en la competencia'].apply(categorizar_equipo)
             
-            # Cálculo de Scores
             score_tandem = df[df['Equipo_Resumido'] == 'Tandem'][col_pts].sum()
             score_cp = df[df['Equipo_Resumido'] == 'Cartera Propia'][col_pts].sum()
 
-            # Visualización del Scorecard
-            st.subheader("Marcador por Equipos")
+            st.subheader("Marcador General")
             c1, c2 = st.columns(2)
-            
-            # Determinamos quién va ganando para poner un emoji
             win_t = "👑 " if score_tandem > score_cp else ""
             win_cp = "👑 " if score_cp > score_tandem else ""
             
@@ -128,9 +135,9 @@ with tab1:
             cols_mostrar = ['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]
             st.dataframe(df[cols_mostrar], use_container_width=True, hide_index=True)
         else:
-            st.error(f"No se encuentra la columna '{col_pts}'")
+            st.error("No se encontró la columna de puntos.")
     else:
-        st.warning("⚠️ No se cargaron datos. Verifica 'Datos.csv' o usa la pestaña Administrar.")
+        st.warning("⚠️ Sin datos. Carga 'Datos.csv' o usa el panel Administrar.")
 
 with tab2:
     st.subheader("Panel Administrativo")
@@ -138,7 +145,7 @@ with tab2:
     
     if pwd == "Patricia.Faguaga":
         st.success("Acceso Permitido")
-        archivo_nuevo = st.file_uploader("Actualizar base (.csv o .xlsx)", type=["csv", "xlsx"])
+        archivo_nuevo = st.file_uploader("Actualizar base", type=["csv", "xlsx"])
         
         if archivo_nuevo:
             try:
@@ -157,11 +164,11 @@ with tab2:
                             except: continue
                         if new_df is not None: break
                 
-                if st.button("Publicar Resultados") and new_df is not None:
+                if st.button("Actualizar y Publicar"):
                     save_data(new_df)
                     st.balloons()
-                    st.success("¡Datos actualizados con éxito!")
+                    st.success("¡Datos actualizados!")
             except Exception as e:
-                st.error(f"Error al leer el archivo: {e}")
+                st.error(f"Error: {e}")
     elif pwd != "":
         st.error("Contraseña incorrecta")

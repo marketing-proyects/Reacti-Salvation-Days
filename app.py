@@ -157,11 +157,11 @@ with tab2:
         st.info("El historial comenzará a registrar datos cuando realices la primera carga en la pestaña Administrar.")
 
 with tab3:
-    st.subheader("Cupones vigentes para días de competencia")
+    st.subheader("Cupones vigentes EXCLUSIVAMENTE para días de competencia")
     url_eshop = "https://eshop.wurth.com.uy/es/UY/UYU/"
     st.markdown(f"""
         <div style="padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-            <p>Haz clic en el botón para ver los cupones disponibles:</p>
+            <p>Haz clic en el botón para ver los cupones:</p>
             <a href="{url_eshop}" target="_blank">
                 <button style="background-color: #DA291C; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-family: 'WuerthBold'; cursor: pointer;">
                     Ir a Cupones Würth

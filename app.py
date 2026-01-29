@@ -54,7 +54,7 @@ def load_data():
     
     # 2. Cargar archivo inicial Datos.csv con manejo de errores de codificación
     if os.path.exists(INITIAL_FILE):
-        # Probamos combinaciones comunes de Excel (Punto y coma + latin-1)
+        # Combinaciones comunes de Excel (Punto y coma + latin-1)
         for encoding in ['latin-1', 'utf-8', 'iso-8859-1']:
             for sep in [';', ',']:
                 try:
@@ -71,7 +71,7 @@ def save_data(df):
     df.to_csv(DATA_FILE, index=False, encoding='utf-8')
 
 # --- INTERFAZ ---
-st.title("REACTISALVATION DAYS")
+st.title("REACTI-SALVATION DAYS")
 
 tab1, tab2 = st.tabs(["🏆 Ranking Mensual", "⚙️ Administrar"])
 
@@ -98,7 +98,7 @@ with tab1:
             
             df['Pos.'] = [format_rank(i) for i in df.index]
             
-            st.subheader("Clasificación de Clientes")
+            st.subheader("Ranking de puntos")
             cols_mostrar = ['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]
             st.dataframe(df[cols_mostrar], use_container_width=True, hide_index=True)
         else:

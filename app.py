@@ -93,7 +93,7 @@ if logo_search:
         # Aplicamos el contenedor con el borde de 1px blanco solicitado
         st.markdown(f'<div class="logo-container"><img src="data:image/png;base64,{base64.b64encode(open(logo_search[0], "rb").read()).decode()}" width="180"></div>', unsafe_allow_html=True)
 
-st.title("REACTISALVATION DAYS")
+st.title("REACTI-SALVATION DAYS")
 
 # --- PESTAÑAS ---
 tab1, tab2, tab3, tab4 = st.tabs(["🏆 Ranking Actual", "📅 Evolución Histórica", "🎟️ Cupones disponibles", "⚙️ Administrar"])

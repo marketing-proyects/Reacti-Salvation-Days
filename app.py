@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import base64
 import os
+import glob
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="REACTISALVATION DAYS", layout="wide")
@@ -13,68 +14,38 @@ def get_base64_font(font_file):
             with open(font_file, "rb") as f:
                 data = f.read()
             return base64.b64encode(data).decode()
-    except Exception:
-        return None
-    return None
+    except: return None
 
-def load_image(image_path):
-    if os.path.exists(image_path):
-        return image_path
-    return None
-
-# --- ESTILOS CSS PERSONALIZADOS ---
+# --- ESTILOS CSS (FUENTES Y ELIMINAR CLIPS) ---
 font_bold = get_base64_font("WuerthBold.ttf")
 font_book = get_base64_font("WuerthBook.ttf")
 
-# CSS para: Fuentes, Colores
 custom_css = f"""
 <style>
-    /* Importar fuentes */
-    @font-face {{
-        font-family: 'WuerthBold';
-        src: url(data:font/ttf;base64,{font_bold}) format('truetype');
-    }}
-    @font-face {{
-        font-family: 'WuerthBook';
-        src: url(data:font/ttf;base64,{font_book}) format('truetype');
-    }}
+    @font-face {{ font-family: 'WuerthBold'; src: url(data:font/ttf;base64,{font_bold}) format('truetype'); }}
+    @font-face {{ font-family: 'WuerthBook'; src: url(data:font/ttf;base64,{font_book}) format('truetype'); }}
 
-    /* Aplicar fuentes a toda la app */
-    html, body, [class*="css"], .stMarkdown {{
-        font-family: 'WuerthBook', sans-serif !important;
-    }}
-    
-    h1, h2, h3, b, strong {{
-        font-family: 'WuerthBold', sans-serif !important;
-        color: #DA291C;
-    }}
+    html, body, [class*="css"], .stMarkdown {{ font-family: 'WuerthBook', sans-serif !important; }}
+    h1, h2, h3, b, strong {{ font-family: 'WuerthBold', sans-serif !important; color: #DA291C; }}
+    [data-testid="stMetricValue"] {{ font-family: 'WuerthBold', sans-serif !important; color: #DA291C; }}
 
-    /* Estilo para las métricas de equipo */
-    [data-testid="stMetricValue"] {{
-        font-family: 'WuerthBold', sans-serif !important;
-        color: #DA291C;
-    }}
-
-    /* OCULTAR ICONOS DE ENLACE (CLIP) EN TÍTULOS */
-    .viewerBadge_container__1QS1n, .st-emotion-cache-15zrgzn {{
-        display: none !important;
-    }}
-    button.copy-to-clipboard {{
-        display: none !important;
-    }}
-    a.anchor-link {{
-        display: none !important;
-    }}
+    /* ELIMINAR ICONOS DE CLIP Y ENLACES */
+    .stApp a.anchor-link {{ display: none !important; }}
+    .stApp button.copy-to-clipboard {{ display: none !important; }}
+    [data-testid="stHeader"] {{ display: none !important; }} /* Limpia cabecera extra */
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # --- ENCABEZADO: LOGO A LA IZQUIERDA ---
-logo_path = load_image("logo_wurth.png")
-if logo_path:
-    col_l, col_r = st.columns([1, 4]) # Proporción para empujar el logo a la izquierda
+# Busca cualquier archivo que se llame logo_wurth (png, jpg, jpeg, svg)
+logo_search = glob.glob("logo_wurth.*")
+if logo_search:
+    col_l, col_r = st.columns([1, 4])
     with col_l:
-        st.image(logo_path, width=180)
+        st.image(logo_search[0], width=200)
+else:
+    st.error("No se encontró el archivo logo_wurth en el repositorio.")
 
 # --- GESTIÓN DE DATOS ---
 DATA_FILE = "db_competencia.csv"
@@ -88,8 +59,7 @@ def load_data():
             for sep in [';', ',']:
                 try:
                     df = pd.read_csv(INITIAL_FILE, sep=sep, encoding=enc)
-                    if len(df.columns) > 1:
-                        return df
+                    if len(df.columns) > 1: return df
                 except: continue
     return pd.DataFrame()
 
@@ -103,7 +73,6 @@ tab1, tab2 = st.tabs(["🏆 Ranking y Equipos", "⚙️ Administrar"])
 
 with tab1:
     df_raw = load_data()
-    
     if not df_raw.empty:
         df_raw.columns = df_raw.columns.str.strip()
         df = df_raw[pd.to_numeric(df_raw['ID'], errors='coerce').notnull()].copy()
@@ -119,49 +88,38 @@ with tab1:
                 if 'cartera propia' in nombre: return 'Cartera Propia'
                 return 'Otros'
 
-            df['Equipo_Resumido'] = df['Equipo que integra en la competencia'].apply(categorizar_equipo)
-            
-            score_tandem = df[df['Equipo_Resumido'] == 'Tandem'][col_pts].sum()
-            score_cp = df[df['Equipo_Resumido'] == 'Cartera Propia'][col_pts].sum()
+            df['Eq_R'] = df['Equipo que integra en la competencia'].apply(categorizar_equipo)
+            score_tandem = df[df['Eq_R'] == 'Tandem'][col_pts].sum()
+            score_cp = df[df['Eq_R'] == 'Cartera Propia'][col_pts].sum()
 
             st.subheader("Marcador General")
             c1, c2 = st.columns(2)
-            win_t = "👑 " if score_tandem > score_cp else ""
-            win_cp = "👑 " if score_cp > score_tandem else ""
-            
-            c1.metric(f"{win_t}Tandem", f"{score_tandem} Puntos")
-            c2.metric(f"{win_cp}Cartera Propia", f"{score_cp} Puntos")
+            c1.metric(f"{'👑 ' if score_tandem > score_cp else ''}Tandem", f"{score_tandem} Pts")
+            c2.metric(f"{'👑 ' if score_cp > score_tandem else ''}Cartera Propia", f"{score_cp} Pts")
             
             st.divider()
 
             # --- RANKING INDIVIDUAL ---
             df = df.sort_values(by=col_pts, ascending=False).reset_index(drop=True)
             df.index += 1
-            
             def format_rank(idx):
                 if idx == 1: return "🥇"
                 if idx == 2: return "🥈"
                 if idx == 3: return "🥉"
                 return str(idx)
-            
             df['Pos.'] = [format_rank(i) for i in df.index]
             
             st.subheader("Ranking Individual")
-            cols_mostrar = ['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]
-            st.dataframe(df[cols_mostrar], use_container_width=True, hide_index=True)
-        else:
-            st.error("No se encontró la columna de puntos.")
+            st.dataframe(df[['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]], 
+                         use_container_width=True, hide_index=True)
     else:
-        st.warning("⚠️ Sin datos. Carga 'Datos.csv' o usa el panel Administrar.")
+        st.warning("⚠️ Sin datos. Sube 'Datos.csv' al repo o usa el panel Administrar.")
 
 with tab2:
     st.subheader("Panel Administrativo")
     pwd = st.text_input("Contraseña:", type="password")
-    
     if pwd == "Patricia.Faguaga":
-        st.success("Acceso Permitido")
         archivo_nuevo = st.file_uploader("Actualizar base", type=["csv", "xlsx"])
-        
         if archivo_nuevo:
             try:
                 if archivo_nuevo.name.endswith('.xlsx'):
@@ -173,17 +131,13 @@ with tab2:
                             try:
                                 archivo_nuevo.seek(0)
                                 temp_df = pd.read_csv(archivo_nuevo, sep=s, encoding=enc)
-                                if len(temp_df.columns) > 1:
-                                    new_df = temp_df
-                                    break
+                                if len(temp_df.columns) > 1: new_df = temp_df; break
                             except: continue
                         if new_df is not None: break
                 
-                if st.button("Actualizar y Publicar"):
+                if st.button("Actualizar Resultados") and new_df is not None:
                     save_data(new_df)
                     st.balloons()
-                    st.success("¡Datos actualizados!")
-            except Exception as e:
-                st.error(f"Error: {e}")
-    elif pwd != "":
-        st.error("Contraseña incorrecta")
+                    st.success("¡Hecho!")
+            except Exception as e: st.error(f"Error: {e}")
+    elif pwd != "": st.error("Contraseña incorrecta")

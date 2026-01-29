@@ -39,6 +39,11 @@ if font_bold and font_book:
         font-family: 'WuerthBold', sans-serif !important;
         color: #DA291C;
     }}
+    /* Estilo para las métricas de equipo */
+    [data-testid="stMetricValue"] {{
+        font-family: 'WuerthBold', sans-serif !important;
+        color: #DA291C;
+    }}
     </style>
     """
     st.markdown(font_style, unsafe_allow_html=True)
@@ -48,63 +53,84 @@ DATA_FILE = "db_competencia.csv"
 INITIAL_FILE = "Datos.csv"
 
 def load_data():
-    # 1. Cargar datos guardados si existen
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
-    
-    # 2. Cargar archivo inicial Datos.csv con manejo de errores de codificación
     if os.path.exists(INITIAL_FILE):
-        # Combinaciones comunes de Excel (Punto y coma + latin-1)
-        for encoding in ['latin-1', 'utf-8', 'iso-8859-1']:
+        for enc in ['latin-1', 'utf-8', 'iso-8859-1']:
             for sep in [';', ',']:
                 try:
-                    df = pd.read_csv(INITIAL_FILE, sep=sep, encoding=encoding)
-                    if len(df.columns) > 1: # Si encontró más de una columna, es el separador correcto
+                    df = pd.read_csv(INITIAL_FILE, sep=sep, encoding=enc)
+                    if len(df.columns) > 1:
                         return df
-                except Exception:
-                    continue
-            
+                except: continue
     return pd.DataFrame()
 
 def save_data(df):
-    # Guardamos en UTF-8 para evitar errores futuros en la app
     df.to_csv(DATA_FILE, index=False, encoding='utf-8')
 
 # --- INTERFAZ ---
-st.title("REACTI-SALVATION DAYS")
+st.title("REACTISALVATION DAYS")
 
-tab1, tab2 = st.tabs(["🏆 Ranking Mensual", "⚙️ Administrar"])
+tab1, tab2 = st.tabs(["🏆 Ranking y Equipos", "⚙️ Administrar"])
 
 with tab1:
     df_raw = load_data()
     
     if not df_raw.empty:
         df_raw.columns = df_raw.columns.str.strip()
-        
-        # Filtro para ignorar filas sin ID (como la fila de fecha bajo los encabezados)
         df = df_raw[pd.to_numeric(df_raw['ID'], errors='coerce').notnull()].copy()
         
         col_pts = 'PUNTOS ACUMULADOS'
         if col_pts in df.columns:
             df[col_pts] = pd.to_numeric(df[col_pts], errors='coerce').fillna(0).astype(int)
+            
+            # --- LÓGICA DE EQUIPOS ---
+            def categorizar_equipo(nombre_equipo):
+                nombre = str(nombre_equipo).lower().strip()
+                if 'tandem' in nombre:
+                    return 'Tandem'
+                if 'cartera propia' in nombre:
+                    return 'Cartera Propia'
+                return 'Otros'
+
+            df['Equipo_Resumido'] = df['Equipo que integra en la competencia'].apply(categorizar_equipo)
+            
+            # Cálculo de Scores
+            score_tandem = df[df['Equipo_Resumido'] == 'Tandem'][col_pts].sum()
+            score_cp = df[df['Equipo_Resumido'] == 'Cartera Propia'][col_pts].sum()
+
+            # Visualización del Scorecard
+            st.subheader("Marcador por Equipos")
+            c1, c2 = st.columns(2)
+            
+            # Determinamos quién va ganando para poner un emoji
+            win_t = "👑 " if score_tandem > score_cp else ""
+            win_cp = "👑 " if score_cp > score_tandem else ""
+            
+            c1.metric(f"{win_t}Tandem", f"{score_tandem} Puntos")
+            c2.metric(f"{win_cp}Cartera Propia", f"{score_cp} Puntos")
+            
+            st.divider()
+
+            # --- RANKING INDIVIDUAL ---
             df = df.sort_values(by=col_pts, ascending=False).reset_index(drop=True)
             df.index += 1
             
             def format_rank(idx):
                 if idx == 1: return "🥇"
-                elif idx == 2: return "🥈"
-                elif idx == 3: return "🥉"
+                if idx == 2: return "🥈"
+                if idx == 3: return "🥉"
                 return str(idx)
             
             df['Pos.'] = [format_rank(i) for i in df.index]
             
-            st.subheader("Ranking de puntos")
+            st.subheader("Ranking Individual")
             cols_mostrar = ['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]
             st.dataframe(df[cols_mostrar], use_container_width=True, hide_index=True)
         else:
             st.error(f"No se encuentra la columna '{col_pts}'")
     else:
-        st.warning("⚠️ No se pudieron cargar los datos de 'Datos.csv'.")
+        st.warning("⚠️ No se cargaron datos. Verifica 'Datos.csv' o usa la pestaña Administrar.")
 
 with tab2:
     st.subheader("Panel Administrativo")
@@ -119,7 +145,6 @@ with tab2:
                 if archivo_nuevo.name.endswith('.xlsx'):
                     new_df = pd.read_excel(archivo_nuevo, engine='openpyxl')
                 else:
-                    # Intento de lectura robusta para CSV subido
                     new_df = None
                     for enc in ['latin-1', 'utf-8']:
                         for s in [';', ',']:

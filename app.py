@@ -23,7 +23,7 @@ def load_image(image_path):
     return None
 
 # --- LOGO Y ESTILOS ---
-logo_path = load_image("logo_wurth.png") # Asegúrate de que el nombre sea exacto
+logo_path = load_image("logo_wurth.jpg") # Asegúrate de que el nombre sea exacto
 
 if logo_path:
     # Centrar logo mediante columnas

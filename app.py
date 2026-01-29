@@ -44,93 +44,109 @@ if font_bold and font_book:
     st.markdown(font_style, unsafe_allow_html=True)
 
 # --- GESTIÓN DE DATOS ---
-DATA_FILE = "datos_competencia.csv"
-INITIAL_FILE = "Libro2.xlsx - Hoja1.csv"
+DATA_FILE = "datos_competencia_guardados.csv"
+INITIAL_FILE = "Datos.csv"
 
 def load_data():
-    # 1. Intentar cargar datos guardados (CSV interno)
+    # 1. Intentar cargar datos guardados por la app
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
     
-    # 2. Intentar cargar el archivo inicial (CSV del repo)
+    # 2. Intentar cargar el archivo inicial 'Datos.csv'
     if os.path.exists(INITIAL_FILE):
         try:
-            return pd.read_csv(INITIAL_FILE)
+            # Probamos con punto y coma primero, que es el formato de tu archivo
+            return pd.read_csv(INITIAL_FILE, sep=';')
         except Exception:
-            pass
+            try:
+                # Si falla, probamos con coma normal
+                return pd.read_csv(INITIAL_FILE)
+            except Exception:
+                pass
             
     # 3. Si nada existe, devolver estructura base
     return pd.DataFrame(columns=['ID', 'Nombre', 'Equipo que integra en la competencia', 'PUNTOS ACUMULADOS'])
 
 def save_data(df):
+    # Guardamos siempre con coma para evitar problemas de compatibilidad interna
     df.to_csv(DATA_FILE, index=False)
 
 # --- INTERFAZ ---
 st.title("REACTISALVATION DAYS")
 
-tab1, tab2 = st.tabs(["🏆 Ranking Mensual", "⚙️ Cargar Datos"])
+tab1, tab2 = st.tabs(["🏆 Ranking Mensual", "⚙️ Administrar"])
 
 with tab1:
     df_raw = load_data()
     
     if not df_raw.empty:
-        # Limpiar nombres de columnas para evitar errores de espacios
+        # Limpiar nombres de columnas
         df_raw.columns = df_raw.columns.str.strip()
         
-        # Filtrar filas válidas (que tengan ID numérico)
+        # Filtrar filas que tengan un ID numérico (ignora encabezados de fecha o filas vacías)
         df = df_raw[pd.to_numeric(df_raw['ID'], errors='coerce').notnull()].copy()
         
-        if 'PUNTOS ACUMULADOS' in df.columns:
-            df['PUNTOS ACUMULADOS'] = pd.to_numeric(df['PUNTOS ACUMULADOS'], errors='coerce').fillna(0).astype(int)
+        # Verificar si existe la columna de puntos
+        col_puntos = 'PUNTOS ACUMULADOS'
+        if col_puntos in df.columns:
+            df[col_puntos] = pd.to_numeric(df[col_puntos], errors='coerce').fillna(0).astype(int)
             
-            # Ordenar por puntos de mayor a menor
-            df = df.sort_values(by='PUNTOS ACUMULADOS', ascending=False).reset_index(drop=True)
+            # Ordenar por puntos (Ranking)
+            df = df.sort_values(by=col_puntos, ascending=False).reset_index(drop=True)
             df.index += 1
             
-            # Formato de medallas para el top 3
+            # Formato de Ranking con medallas
             def get_medal(idx):
                 if idx == 1: return "🥇"
                 if idx == 2: return "🥈"
                 if idx == 3: return "🥉"
                 return str(idx)
             
-            df['Puesto'] = [get_medal(i) for i in df.index]
+            df['Posición'] = [get_medal(i) for i in df.index]
             
-            st.subheader("Clasificación General")
+            st.subheader("Clasificación General del Equipo")
+            
+            # Columnas a mostrar
+            vista_df = df[['Posición', 'Nombre', 'Equipo que integra en la competencia', col_puntos]]
+            
             st.dataframe(
-                df[['Puesto', 'Nombre', 'Equipo que integra en la competencia', 'PUNTOS ACUMULADOS']], 
+                vista_df, 
                 use_container_width=True, 
                 hide_index=True
             )
         else:
-            st.info("No se encontró la columna 'PUNTOS ACUMULADOS'. Por favor, verifica el archivo.")
+            st.info(f"No se encontró la columna '{col_puntos}' en el archivo.")
     else:
-        st.warning("No hay datos cargados. Ve a la pestaña de 'Cargar Datos' para subir el archivo.")
+        st.warning("No se detectaron datos. Ve a 'Administrar' para cargar tu archivo Datos.csv.")
 
 with tab2:
-    st.subheader("Acceso Administrativo")
-    password = st.text_input("Contraseña:", type="password")
+    st.subheader("Panel de Control")
+    password = st.text_input("Contraseña de acceso:", type="password")
     
     if password == "Patricia.Faguaga":
-        st.success("Acceso concedido")
-        uploaded_file = st.file_uploader("Sube el archivo Excel o CSV actualizado", type=["csv", "xlsx"])
+        st.success("Acceso autorizado")
+        uploaded_file = st.file_uploader("Actualizar base de datos (.csv o .xlsx)", type=["csv", "xlsx"])
         
         if uploaded_file is not None:
             try:
-                # Carga dinámica: detecta si es Excel y usa openpyxl
                 if uploaded_file.name.endswith('.xlsx'):
-                    # Forzamos el motor openpyxl para evitar el error anterior
                     new_df = pd.read_excel(uploaded_file, engine='openpyxl')
                 else:
-                    new_df = pd.read_csv(uploaded_file)
+                    # Al cargar manualmente, intentamos detectar el separador
+                    try:
+                        new_df = pd.read_csv(uploaded_file, sep=';')
+                        if len(new_df.columns) <= 1: # Si no separó bien, probar coma
+                            uploaded_file.seek(0)
+                            new_df = pd.read_csv(uploaded_file, sep=',')
+                    except:
+                        uploaded_file.seek(0)
+                        new_df = pd.read_csv(uploaded_file)
                 
-                if st.button("Confirmar y Actualizar Ranking"):
+                if st.button("Guardar Cambios y Actualizar Ranking"):
                     save_data(new_df)
                     st.balloons()
                     st.success("¡Datos actualizados con éxito!")
-                    st.info("Cambia a la pestaña de Ranking para ver los resultados.")
             except Exception as e:
-                st.error(f"Error al procesar el archivo: {e}")
-                st.info("Sugerencia: Intenta guardar tu Excel como archivo .CSV y súbelo de nuevo.")
+                st.error(f"Error al procesar: {e}")
     elif password != "":
         st.error("Contraseña incorrecta")

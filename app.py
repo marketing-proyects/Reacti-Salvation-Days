@@ -6,7 +6,7 @@ import glob
 from datetime import datetime
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="REACTISALVATION DAYS", layout="wide")
+st.set_page_config(page_title="REACTI-SALVATION DAYS", layout="wide")
 
 # --- FUNCIONES PARA RECURSOS ---
 def get_base64_font(font_file):

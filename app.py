@@ -26,7 +26,7 @@ def load_image(image_path):
 font_bold = get_base64_font("WuerthBold.ttf")
 font_book = get_base64_font("WuerthBook.ttf")
 
-# CSS para: Fuentes, Colores, y quitar los iconos de "clip" (enlaces)
+# CSS para: Fuentes, Colores
 custom_css = f"""
 <style>
     /* Importar fuentes */

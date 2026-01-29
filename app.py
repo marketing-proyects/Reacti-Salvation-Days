@@ -16,7 +16,7 @@ def get_base64_font(font_file):
             return base64.b64encode(data).decode()
     except: return None
 
-# --- ESTILOS CSS (FUENTES Y ELIMINAR CLIPS) ---
+# --- ESTILOS CSS ---
 font_bold = get_base64_font("WuerthBold.ttf")
 font_book = get_base64_font("WuerthBook.ttf")
 

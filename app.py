@@ -181,9 +181,12 @@ with tab2:
 
 with tab3:
     st.subheader("Cupones y Beneficios")
+    # Definimos la variable con el enlace correcto
     url_eshop = "https://viewer.ipaper.io/wurth-uruguay/cupones/cupones-regalos-reacti-salvation-days/1-cupones-febrero-reacti-salvation-dayspdf/"
-    st.markdown(f'<a href="{Cupones_del_día}" target="_blank"><button style="background-color: #DA291C; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-family: \'WuerthBold\'; cursor: pointer;">Ir a Cupones Würth</button></a>', unsafe_allow_html=True)
-
+    
+    # Usamos la misma variable (url_eshop) dentro del f-string
+    st.markdown(f'<a href="{url_eshop}" target="_blank"><button style="background-color: #DA291C; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-family: \'WuerthBold\'; cursor: pointer;">Ir a Cupones Würth</button></a>', unsafe_allow_html=True)
+    
 with tab4:
     st.subheader("Panel Administrativo")
     pwd = st.text_input("Contraseña:", type="password")

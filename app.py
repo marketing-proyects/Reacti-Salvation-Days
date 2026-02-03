@@ -63,11 +63,9 @@ INITIAL_FILE = "Datos.csv"
 HISTORICO_FILE = "db_historico_desempeno.csv"
 
 def load_data():
-    # Intentar cargar primero los datos guardados en la sesión
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
     
-    # Si no hay guardados, buscar el archivo Datos.csv inicial
     if os.path.exists(INITIAL_FILE):
         for enc in ['latin-1', 'utf-8', 'iso-8859-1']:
             for sep in [';', ',']:
@@ -81,12 +79,9 @@ def load_data():
 def save_data(df):
     df.to_csv(DATA_FILE, index=False, encoding='utf-8')
     
-    # Procesar para el histórico
     df_hist = df.copy()
-    # Limpiamos nombres de columnas para asegurar match
     df_hist.columns = df_hist.columns.str.strip()
     
-    # Filtramos para el histórico (solo filas con ID numérico real)
     df_hist['ID_clean'] = pd.to_numeric(df_hist['ID'], errors='coerce')
     df_hist = df_hist[df_hist['ID_clean'].notnull()].copy()
     
@@ -94,7 +89,6 @@ def save_data(df):
     cols_historico = ['Fecha Competencia', 'Nombre', 'Equipo que integra en la competencia', 
                       'Clientes Reactivados', 'Clientes 11 meses', 'PUNTOS ACUMULADOS']
     
-    # Tomar solo las columnas que existan para no dar error
     final_cols = [c for c in cols_historico if c in df_hist.columns]
     df_save = df_hist[final_cols]
 
@@ -107,16 +101,25 @@ def save_data(df):
         
     new_hist.to_csv(HISTORICO_FILE, index=False, encoding='utf-8')
 
-# --- 5. LOGO ---
-logo_search = glob.glob("logo_wurth.*")
-if logo_search:
-    col_l, col_r = st.columns([1, 4])
-    with col_l:
-        with open(logo_search[0], "rb") as f:
+# --- 5. LOGOS DE CABECERA ---
+logo_empresa = glob.glob("logo_wurth.*")
+logo_competencia = glob.glob("imagen.png") 
+
+col_l, col_r = st.columns([1, 4])
+
+with col_l:
+    if logo_empresa:
+        with open(logo_empresa[0], "rb") as f:
             b64_logo = base64.b64encode(f.read()).decode()
         st.markdown(f'<div class="logo-container"><img src="data:image/png;base64,{b64_logo}" width="180"></div>', unsafe_allow_html=True)
 
-st.title("REACTISALVATION DAYS")
+with col_r:
+    if logo_competencia:
+        with open(logo_competencia[0], "rb") as f:
+            b64_comp = base64.b64encode(f.read()).decode()
+        st.markdown(f'<img src="data:image/png;base64,{b64_comp}" width="500">', unsafe_allow_html=True)
+    else:
+        st.title("REACTISALVATION DAYS")
 
 # --- 6. PESTAÑAS ---
 tab1, tab2, tab3, tab4 = st.tabs(["🏆 Ranking Actual", "📅 Evolución Histórica", "🎟️ Cupones disponibles", "⚙️ Administrar"])
@@ -124,20 +127,15 @@ tab1, tab2, tab3, tab4 = st.tabs(["🏆 Ranking Actual", "📅 Evolución Histó
 with tab1:
     df_raw = load_data()
     if not df_raw.empty:
-        # LIMPIEZA CRÍTICA: Quitamos espacios de los nombres de columnas
         df_raw.columns = df_raw.columns.str.strip()
-        
-        # Filtramos filas: Solo las que tienen un ID numérico (esto salta encabezados y totales de texto)
         df_raw['ID_num'] = pd.to_numeric(df_raw['ID'], errors='coerce')
         df = df_raw[df_raw['ID_num'].notnull()].copy()
         
-        # Buscamos la columna de puntos (siendo flexibles con el nombre)
         col_pts = 'PUNTOS ACUMULADOS'
         
         if col_pts in df.columns:
             df[col_pts] = pd.to_numeric(df[col_pts], errors='coerce').fillna(0).astype(int)
             
-            # Clasificar equipos
             def cat_eq(n):
                 n = str(n).lower()
                 if 'tandem' in n: return 'Tandem'
@@ -154,7 +152,6 @@ with tab1:
             c2.metric(f"{'👑 ' if s_cp > s_tan else ''}Cartera Propia", f"{s_cp} Pts")
             st.divider()
 
-            # Ranking
             df = df.sort_values(by=col_pts, ascending=False).reset_index(drop=True)
             df.index += 1
             df['Pos.'] = [("🥇" if i==1 else "🥈" if i==2 else "🥉" if i==3 else str(i)) for i in df.index]
@@ -163,10 +160,9 @@ with tab1:
             st.dataframe(df[['Pos.', 'Nombre', 'Equipo que integra en la competencia', col_pts]], 
                          use_container_width=True, hide_index=True)
         else:
-            st.error(f"No se encontró la columna '{col_pts}'. Verifica que el nombre en el Excel sea exacto.")
-            st.info(f"Columnas detectadas: {list(df_raw.columns)}")
+            st.error(f"No se encontró la columna '{col_pts}'.")
     else:
-        st.warning("⚠️ Sin datos. Sube el archivo 'Datos.csv' o usa la pestaña Administrar.")
+        st.warning("⚠️ Sin datos.")
 
 with tab2:
     st.subheader("Desempeño Acumulado")
@@ -176,17 +172,13 @@ with tab2:
         if persona != "Todas":
             h_df = h_df[h_df['Nombre'] == persona]
         st.dataframe(h_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("El historial se generará tras la primera carga exitosa.")
 
 with tab3:
     st.subheader("Cupones y Beneficios")
-    # Definimos la variable con el enlace correcto
-    url_eshop = "https://viewer.ipaper.io/wurth-uruguay/cupones/cupones-regalos-reacti-salvation-days/1-cupones-febrero-reacti-salvation-dayspdf/"
-    
-    # Usamos la misma variable (url_eshop) dentro del f-string
-    st.markdown(f'<a href="{url_eshop}" target="_blank"><button style="background-color: #DA291C; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-family: \'WuerthBold\'; cursor: pointer;">Ir a Cupones Würth</button></a>', unsafe_allow_html=True)
-    
+    # Enlace actualizado para febrero
+    url_cupones = "https://viewer.ipaper.io/wurth-uruguay/cupones/cupones-regalos-reacti-salvation-days/1-cupones-febrero-reacti-salvation-dayspdf/"
+    st.markdown(f'<a href="{url_cupones}" target="_blank"><button style="background-color: #DA291C; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-family: \'WuerthBold\'; cursor: pointer;">Ir a Cupones Würth</button></a>', unsafe_allow_html=True)
+
 with tab4:
     st.subheader("Panel Administrativo")
     pwd = st.text_input("Contraseña:", type="password")
@@ -199,12 +191,9 @@ with tab4:
                 else:
                     new_df = pd.read_csv(archivo, sep=None, engine='python', encoding='latin-1')
                 
-                # Limpiamos columnas antes de guardar
                 new_df.columns = new_df.columns.str.strip()
                 save_data(new_df)
                 st.balloons()
                 st.success("¡Datos actualizados correctamente!")
             except Exception as e:
                 st.error(f"Error al procesar: {e}")
-    elif pwd != "":
-        st.error("Contraseña incorrecta")

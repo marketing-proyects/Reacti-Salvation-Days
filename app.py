@@ -176,7 +176,7 @@ with tab2:
 with tab3:
     st.subheader("Cupones y Beneficios")
     # Enlace actualizado para febrero
-    url_cupones = "https://viewer.ipaper.io/wurth-uruguay/cupones/cupones-regalos-reacti-salvation-days/1-cupones-febrero-reacti-salvation-dayspdf/"
+    url_cupones = "https://viewer.ipaper.io/wurth-uruguay/cupones/cupones-regalos-reacti-salvation-days/1-cupones-febrero-reacti-salvation-days-wurth-y-wmaxpdf/?page=1"
     st.markdown(f'<a href="{url_cupones}" target="_blank"><button style="background-color: #DA291C; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-family: \'WuerthBold\'; cursor: pointer;">Ir a Cupones Würth</button></a>', unsafe_allow_html=True)
 
 with tab4:

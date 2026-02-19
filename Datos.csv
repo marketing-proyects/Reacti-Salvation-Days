@@ -9,7 +9,7 @@ ID;Nombre;Equipo que integra en la competencia;División;Clientes Reactivados;PUN
 319;NATALIA GARCIA;Supervisora Cartera Propia;Cargo;1;1;0;0;1
 329;FLORENCIA ETCHECHURY;Cartera propia;Auto;0;0;0;0;0
 334;DAYANA SILVERA;Tandem;Trade;0;0;0;0;0
-337;DANICA CHU;Cartera propia;Trade;0;0;0;0;0
+337;DANICA CHU;Cartera propia;Trade;1;0;0;0;1
 360;CAMILA BARBOZA;Tandem;Reventa;0;0;2;2;2
 361;GUIDAI SILVEIRA ;Cartera propia;Wood;0;0;0;0;0
 392;PAULA SANCHEZ ;Cartera propia ;Metal ;3;3;0;0;3
@@ -18,4 +18,3 @@ ID;Nombre;Equipo que integra en la competencia;División;Clientes Reactivados;PUN
 407;LISSET TRIAS;Tandem;Metal;0;0;0;0;0
 408;PIERINA ROMERO ;Tandem;Auto;0;0;3;3;3
 409;AGUSTINA GUALTIERI ;Cartera propia ;Auto;1;1;1;1;2
-;;;;;;;;13

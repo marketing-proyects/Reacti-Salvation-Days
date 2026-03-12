@@ -174,9 +174,9 @@ with tab2:
         st.dataframe(h_df, use_container_width=True, hide_index=True)
 
 with tab3:
-    st.subheader("Cupones y Beneficios")
-    # Enlace actualizado para febrero
-    url_cupones = "https://viewer.ipaper.io/wurth-uruguay/cupones/cupones-regalos-reacti-salvation-days/1-cupones-febrero-reacti-salvation-days-wurth-y-wmaxpdf/?page=1"
+    st.subheader("Cupones vigentes")
+    # Enlace actualizado a cupones activos
+    url_cupones = "https://viewer.ipaper.io/wurth-uruguay/cupones/cupones-regalos-reacti-salvation-days/cupones-activos-reacti-salvation-days-wurth-y-wmaxpdf/"
     st.markdown(f'<a href="{url_cupones}" target="_blank"><button style="background-color: #DA291C; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-family: \'WuerthBold\'; cursor: pointer;">Ir a Cupones Würth</button></a>', unsafe_allow_html=True)
 
 with tab4:

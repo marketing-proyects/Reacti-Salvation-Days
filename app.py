@@ -118,35 +118,35 @@ with tab2:
             h_df = pd.read_excel(EXCEL_HISTORICO, engine='openpyxl')
             h_df.columns = h_df.columns.str.strip()
             
-            # --- LIMPIEZA DE DATOS (Solución al error de comparación) ---
-            # Convertimos Nombre a string y eliminamos filas vacías en Nombre
-            h_df['Nombre'] = h_df['Nombre'].astype(str).replace('nan', '')
+            # --- LIMPIEZA ROBUSTA ---
+            # 1. Asegurar que Nombre sea string y no tenga nulos
+            h_df['Nombre'] = h_df['Nombre'].astype(str).replace('nan', '').str.strip()
             h_df = h_df[h_df['Nombre'] != ""].copy()
             
-            # Convertimos puntos a numérico para asegurar que no haya strings mezclados
+            # 2. Asegurar que Puntos sea numérico
             if 'PUNTOS ACUMULADOS' in h_df.columns:
                 h_df['PUNTOS ACUMULADOS'] = pd.to_numeric(h_df['PUNTOS ACUMULADOS'], errors='coerce').fillna(0)
 
             if not h_df.empty:
-                vendedores = sorted([v for v in h_df['Nombre'].unique() if v])
-                vendedor = st.selectbox("Filtrar por Vendedor:", ["Todos"] + vendedores)
+                # 3. Filtrar nombres válidos para el selector (evita el error de comparación)
+                lista_vendedores = [v for v in h_df['Nombre'].unique() if isinstance(v, str) and v != ""]
+                vendedor = st.selectbox("Filtrar por Vendedor:", ["Todos"] + sorted(lista_vendedores))
                 
                 df_final = h_df.copy()
                 if vendedor != "Todos":
                     df_final = df_final[df_final['Nombre'] == vendedor]
                 
                 if 'PUNTOS ACUMULADOS' in df_final.columns:
-                    # Ordenamos para evitar errores en el gráfico
                     eje_x = 'Mes' if 'Mes' in df_final.columns else None
                     st.area_chart(df_final, x=eje_x, y='PUNTOS ACUMULADOS')
                 
                 st.dataframe(df_final, use_container_width=True, hide_index=True)
             else:
-                st.warning("El archivo de evolución está vacío.")
+                st.warning("El archivo está cargado pero no contiene datos válidos en la columna 'Nombre'.")
         except Exception as e:
             st.error(f"Error al procesar el Excel: {e}")
     else:
-        st.info(f"📂 Sube un archivo llamado `{EXCEL_HISTORICO}` para ver los datos históricos.")
+        st.info(f"📂 Archivo `{EXCEL_HISTORICO}` no detectado.")
 
 with tab3:
     st.subheader("Cupones vigentes")

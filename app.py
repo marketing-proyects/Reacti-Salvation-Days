@@ -42,7 +42,6 @@ custom_css = f"""
         margin: 0;
     }}
 
-    /* ELIMINAR LOS CLIPS Y ANCLAJES */
     [data-testid="stHeaderActionElements"], 
     .st-emotion-cache-15zrgzn, 
     .st-emotion-cache-kg9q0s, 
@@ -60,53 +59,26 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # --- 4. GESTIÓN DE DATOS ---
 DATA_FILE = "db_competencia.csv"
 INITIAL_FILE = "Datos.csv"
-HISTORICO_FILE = "db_historico_desempeno.csv"
+# ESTE ES EL EXCEL QUE TÚ ACTUALIZARÁS MANUALMENTE
+EXCEL_HISTORICO = "Evolucion_Manual.xlsx"
 
 def load_data():
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
-    
     if os.path.exists(INITIAL_FILE):
         for enc in ['latin-1', 'utf-8', 'iso-8859-1']:
             for sep in [';', ',']:
                 try:
                     df = pd.read_csv(INITIAL_FILE, sep=sep, encoding=enc)
-                    if len(df.columns) > 1:
-                        return df
+                    if len(df.columns) > 1: return df
                 except: continue
     return pd.DataFrame()
-
-def save_data(df):
-    df.to_csv(DATA_FILE, index=False, encoding='utf-8')
-    
-    df_hist = df.copy()
-    df_hist.columns = df_hist.columns.str.strip()
-    
-    df_hist['ID_clean'] = pd.to_numeric(df_hist['ID'], errors='coerce')
-    df_hist = df_hist[df_hist['ID_clean'].notnull()].copy()
-    
-    df_hist['Fecha Competencia'] = datetime.now().strftime("%d/%m/%Y")
-    cols_historico = ['Fecha Competencia', 'Nombre', 'Equipo que integra en la competencia', 
-                      'Clientes Reactivados', 'Clientes 11 meses', 'PUNTOS ACUMULADOS']
-    
-    final_cols = [c for c in cols_historico if c in df_hist.columns]
-    df_save = df_hist[final_cols]
-
-    if os.path.exists(HISTORICO_FILE):
-        old_hist = pd.read_csv(HISTORICO_FILE)
-        old_hist = old_hist[old_hist['Fecha Competencia'] != datetime.now().strftime("%d/%m/%Y")]
-        new_hist = pd.concat([old_hist, df_save], ignore_index=True)
-    else:
-        new_hist = df_save
-        
-    new_hist.to_csv(HISTORICO_FILE, index=False, encoding='utf-8')
 
 # --- 5. LOGOS DE CABECERA ---
 logo_empresa = glob.glob("logo_wurth.*")
 logo_competencia = glob.glob("imagen.png") 
 
 col_l, col_r = st.columns([1, 4])
-
 with col_l:
     if logo_empresa:
         with open(logo_empresa[0], "rb") as f:
@@ -118,8 +90,6 @@ with col_r:
         with open(logo_competencia[0], "rb") as f:
             b64_comp = base64.b64encode(f.read()).decode()
         st.markdown(f'<img src="data:image/png;base64,{b64_comp}" width="500">', unsafe_allow_html=True)
-    else:
-        st.title("REACTISALVATION DAYS")
 
 # --- 6. PESTAÑAS ---
 tab1, tab2, tab3, tab4 = st.tabs(["🏆 Ranking Actual", "📅 Evolución Histórica", "🎟️ Cupones disponibles", "⚙️ Administrar"])
@@ -130,12 +100,10 @@ with tab1:
         df_raw.columns = df_raw.columns.str.strip()
         df_raw['ID_num'] = pd.to_numeric(df_raw['ID'], errors='coerce')
         df = df_raw[df_raw['ID_num'].notnull()].copy()
-        
         col_pts = 'PUNTOS ACUMULADOS'
         
         if col_pts in df.columns:
             df[col_pts] = pd.to_numeric(df[col_pts], errors='coerce').fillna(0).astype(int)
-            
             def cat_eq(n):
                 n = str(n).lower()
                 if 'tandem' in n: return 'Tandem'
@@ -166,21 +134,28 @@ with tab1:
 
 with tab2:
     st.subheader("Desempeño Acumulado")
-    if os.path.exists(HISTORICO_FILE):
+    if os.path.exists(EXCEL_HISTORICO):
         try:
-            h_df = pd.read_csv(HISTORICO_FILE)
-            if not h_df.empty:
-                persona = st.selectbox("Filtrar por Competidora:", ["Todas"] + sorted(h_df['Nombre'].unique().tolist()))
-                if persona != "Todas":
-                    h_df = h_df[h_df['Nombre'] == persona]
-                st.dataframe(h_df, use_container_width=True, hide_index=True)
-            else:
-                st.info("El archivo histórico está vacío. Procesa nuevos datos en la pestaña Administrar.")
+            h_df = pd.read_excel(EXCEL_HISTORICO)
+            h_df.columns = h_df.columns.str.strip()
+            
+            # Filtro por vendedor
+            vendedor = st.selectbox("Filtrar por Vendedor:", ["Todos"] + sorted(h_df['Nombre'].unique().tolist()))
+            
+            df_final = h_df.copy()
+            if vendedor != "Todos":
+                df_final = df_final[df_final['Nombre'] == vendedor]
+            
+            # Gráfico de evolución (si existen puntos)
+            if 'PUNTOS ACUMULADOS' in df_final.columns:
+                st.line_chart(df_final, x='Mes' if 'Mes' in df_final.columns else None, y='PUNTOS ACUMULADOS')
+            
+            st.dataframe(df_final, use_container_width=True, hide_index=True)
+            
         except Exception as e:
-            st.error(f"Error al cargar el histórico: {e}")
+            st.error(f"Error al leer el Excel manual: {e}")
     else:
-        # CORRECCIÓN: Mensaje para cuando el archivo aún no ha sido creado
-        st.info("📂 Aún no hay registros históricos guardados. Debes cargar y guardar un archivo en la pestaña 'Administrar' para generar el historial.")
+        st.info(f"Para ver la evolución, crea un archivo llamado `{EXCEL_HISTORICO}` y cárgalo en la carpeta del proyecto.")
 
 with tab3:
     st.subheader("Cupones vigentes")
@@ -191,19 +166,15 @@ with tab4:
     st.subheader("Panel Administrativo")
     pwd = st.text_input("Contraseña:", type="password")
     if pwd == "Patricia.Faguaga":
-        archivo = st.file_uploader("Subir archivo actualizado", type=["csv", "xlsx"])
-        if archivo and st.button("Guardar y Registrar este Mes"):
+        archivo = st.file_uploader("Subir Ranking Actual (Datos.csv)", type=["csv", "xlsx"])
+        if archivo and st.button("Guardar Datos"):
             try:
                 if archivo.name.endswith('.xlsx'):
                     new_df = pd.read_excel(archivo, engine='openpyxl')
                 else:
                     new_df = pd.read_csv(archivo, sep=None, engine='python', encoding='latin-1')
-                
-                new_df.columns = new_df.columns.str.strip()
-                save_data(new_df)
-                st.balloons()
-                st.success("¡Datos actualizados correctamente! El historial ha sido generado.")
-                # Forzar recarga de la aplicación para que tab2 detecte el nuevo archivo
+                new_df.to_csv(DATA_FILE, index=False, encoding='utf-8')
+                st.success("¡Datos actualizados!")
                 st.rerun()
             except Exception as e:
-                st.error(f"Error al procesar: {e}")
+                st.error(f"Error: {e}")

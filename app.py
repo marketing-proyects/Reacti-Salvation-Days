@@ -167,15 +167,23 @@ with tab1:
 with tab2:
     st.subheader("Desempeño Acumulado")
     if os.path.exists(HISTORICO_FILE):
-        h_df = pd.read_csv(HISTORICO_FILE)
-        persona = st.selectbox("Filtrar por Competidora:", ["Todas"] + sorted(h_df['Nombre'].unique().tolist()))
-        if persona != "Todas":
-            h_df = h_df[h_df['Nombre'] == persona]
-        st.dataframe(h_df, use_container_width=True, hide_index=True)
+        try:
+            h_df = pd.read_csv(HISTORICO_FILE)
+            if not h_df.empty:
+                persona = st.selectbox("Filtrar por Competidora:", ["Todas"] + sorted(h_df['Nombre'].unique().tolist()))
+                if persona != "Todas":
+                    h_df = h_df[h_df['Nombre'] == persona]
+                st.dataframe(h_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("El archivo histórico está vacío. Procesa nuevos datos en la pestaña Administrar.")
+        except Exception as e:
+            st.error(f"Error al cargar el histórico: {e}")
+    else:
+        # CORRECCIÓN: Mensaje para cuando el archivo aún no ha sido creado
+        st.info("📂 Aún no hay registros históricos guardados. Debes cargar y guardar un archivo en la pestaña 'Administrar' para generar el historial.")
 
 with tab3:
     st.subheader("Cupones vigentes")
-    # Enlace actualizado a cupones activos
     url_cupones = "https://viewer.ipaper.io/wurth-uruguay/cupones/cupones-regalos-reacti-salvation-days/cupones-activos-reacti-salvation-days-wurth-y-wmaxpdf/"
     st.markdown(f'<a href="{url_cupones}" target="_blank"><button style="background-color: #DA291C; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-family: \'WuerthBold\'; cursor: pointer;">Ir a Cupones Würth</button></a>', unsafe_allow_html=True)
 
@@ -194,6 +202,8 @@ with tab4:
                 new_df.columns = new_df.columns.str.strip()
                 save_data(new_df)
                 st.balloons()
-                st.success("¡Datos actualizados correctamente!")
+                st.success("¡Datos actualizados correctamente! El historial ha sido generado.")
+                # Forzar recarga de la aplicación para que tab2 detecte el nuevo archivo
+                st.rerun()
             except Exception as e:
                 st.error(f"Error al procesar: {e}")
